@@ -60,9 +60,11 @@ smtp:
 #   name:               友链名称
 #   url:                指定的RSS地址
 specific_RSS:
-  - name: "华东师范大学本科生院"
+  - name: "本科生院"
     url: "https://rsshub.cups.moe/ecnu/bksy"
-  - name: "上海交通大学面向学生的教务通知"
+  - name: "软件工程学院"
+    url: "https://rsshub.cups.moe/ecnu/sei"
+  - name: "上海交通大学教务处"
     url: "http://rsshub.umzzz.com/sjtu/jwc/students"
   - name: "同济大学本科生院"
     url: "https://rsshub.umzzz.com/tongji/bks"
