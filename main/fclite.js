@@ -9,6 +9,7 @@ function initialize_fc_lite() {
       "https://fastly.jsdelivr.net/gh/willow-god/Friend-Circle-Lite/static/favicon.ico", // 默认头像
   };
 
+  let currentFilteredArticles = [];
   const root = document.getElementById("friend-circle-lite-root");
 
   if (!root) return; // 确保根元素存在
