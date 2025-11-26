@@ -23,4 +23,4 @@ HEADERS_XML = {
     "X-Friend-Circle": "1.0"
 }
 
-timeout = (10, 15)
+timeout = (10, 60)
