@@ -34,12 +34,12 @@ function initialize_fc_lite() {
   //筛选控制
   const filterContainer = document.createElement("div");
   filterContainer.id = "filter-container";
-
+  root.insertBefore(filterContainer, container);
+  
   const authorFilter = document.createElement("select");
   authorFilter.id = "author-filter";
   authorFilter.innerHTML = '<option value="">全部学院</option>';
   filterContainer.appendChild(authorFilter);
-  root.insertBefore(filterContainer, container);
 
   // 创建统计信息容器
   const statsContainer = document.createElement("div");
