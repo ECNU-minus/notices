@@ -9,7 +9,6 @@ function initialize_fc_lite() {
       "https://fastly.jsdelivr.net/gh/willow-god/Friend-Circle-Lite/static/favicon.ico", // 默认头像
   };
 
-  let currentFilteredArticles = [];
   const root = document.getElementById("friend-circle-lite-root");
 
   if (!root) return; // 确保根元素存在
@@ -44,42 +43,42 @@ function initialize_fc_lite() {
 
   let start = 0; // 记录加载起始位置
   let allArticles = []; // 存储所有文章
-
+  let currentFilteredArticles = [];
   function loadMoreArticles() {
-    const cacheKey = "friend-circle-lite-cache";
-    const cacheTimeKey = "friend-circle-lite-cache-time";
-    const cacheTime = localStorage.getItem(cacheTimeKey);
-    const now = new Date().getTime();
+    // const cacheKey = "friend-circle-lite-cache";
+    // const cacheTimeKey = "friend-circle-lite-cache-time";
+    // const cacheTime = localStorage.getItem(cacheTimeKey);
+    // const now = new Date().getTime();
 
-    if (cacheTime && now - cacheTime < 10 * 60 * 1000) {
-      // 缓存时间小于10分钟
-      const cachedData = JSON.parse(localStorage.getItem(cacheKey));
-      if (cachedData) {
-        processArticles(cachedData);
-        return;
-      }
-    }
-
-    fetch(`${UserConfig.private_api_url}all.json`)
-      .then((response) => response.json())
-      .then((data) => {
-        localStorage.setItem(cacheKey, JSON.stringify(data));
-        localStorage.setItem(cacheTimeKey, now.toString());
-        processArticles(data);
-      })
-      .finally(() => {
-        loadMoreBtn.innerText = "再来亿点"; // 恢复按钮文本
-      });
-
-    // const nextArticles = currentFilteredArticles.slice(
-    //   start,
-    //   start + UserConfig.page_turning_number
-    // );
-    // renderArticles([...container.children].map((n) => n).concat(nextArticles));
-    // start += UserConfig.page_turning_number;
-    // if (start >= currentFilteredArticles.length) {
-    //   loadMoreBtn.style.display = "none";
+    // if (cacheTime && now - cacheTime < 10 * 60 * 1000) {
+    //   // 缓存时间小于10分钟
+    //   const cachedData = JSON.parse(localStorage.getItem(cacheKey));
+    //   if (cachedData) {
+    //     processArticles(cachedData);
+    //     return;
+    //   }
     // }
+
+    // fetch(`${UserConfig.private_api_url}all.json`)
+    //   .then((response) => response.json())
+    //   .then((data) => {
+    //     localStorage.setItem(cacheKey, JSON.stringify(data));
+    //     localStorage.setItem(cacheTimeKey, now.toString());
+    //     processArticles(data);
+    //   })
+    //   .finally(() => {
+    //     loadMoreBtn.innerText = "再来亿点"; // 恢复按钮文本
+    //   });
+
+    const nextArticles = currentFilteredArticles.slice(
+      start,
+      start + UserConfig.page_turning_number
+    );
+    renderArticles([...container.children].map((n) => n).concat(nextArticles));
+    start += UserConfig.page_turning_number;
+    if (start >= currentFilteredArticles.length) {
+      loadMoreBtn.style.display = "none";
+    }
   }
 
   function renderArticles(articleToRender) {
@@ -156,6 +155,7 @@ function initialize_fc_lite() {
       opt.textContent = author;
       authorFilter.appendChild(opt);
     });
+    currentFilteredArticles = [...allArticles]; 
 
     // 处理统计数据
     const stats = data.statistical_data;
@@ -171,10 +171,12 @@ function initialize_fc_lite() {
       start + UserConfig.page_turning_number
     );
     renderArticles(initialArticles);
-    start = UserConfig.page_turning_number;
+    start = initialArticles.length;
 
     if (start >= allArticles.length) {
-      loadMoreBtn.style.display = "none"; // 隐藏按钮
+      loadMoreBtn.style.display = "none";
+    } else {
+      loadMoreBtn.style.display = "block"; // 确保按钮显示
     }
   }
 
@@ -260,7 +262,7 @@ function initialize_fc_lite() {
 
   // 初始加载
   loadMoreArticles();
-
+  
   // 加载更多按钮点击事件
   loadMoreBtn.addEventListener("click", loadMoreArticles);
 
