@@ -1,20 +1,73 @@
 function initialize_fc_lite() {
-  // 用户配置
-  // 设置默认配置
+  // User Configuration
   UserConfig = {
     private_api_url: UserConfig?.private_api_url || "",
-    page_turning_number: UserConfig?.page_turning_number || 24, // 默认24篇
+    page_turning_number: UserConfig?.page_turning_number || 24,
     error_img:
       UserConfig?.error_img ||
-      "https://fastly.jsdelivr.net/gh/willow-god/Friend-Circle-Lite/static/favicon.ico", // 默认头像
+      "https://fastly.jsdelivr.net/gh/willow-god/Friend-Circle-Lite/static/favicon.ico",
   };
 
   const root = document.getElementById("friend-circle-lite-root");
+  if (!root) return;
 
-  if (!root) return; // 确保根元素存在
+  // --- 1. Inject Styles for the Multi-select Dropdown ---
+  const styleId = "fc-lite-multiselect-style";
+  if (!document.getElementById(styleId)) {
+    const style = document.createElement("style");
+    style.id = styleId;
+    style.textContent = `
+      .fcl-filter-wrapper { position: relative; display: inline-block; margin-bottom: 15px; font-family: sans-serif; }
+      .fcl-dropdown-btn { 
+        padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px; background: #fff; cursor: pointer; min-width: 120px; text-align: left; display: flex; justify-content: space-between; align-items: center;
+      }
+      .fcl-dropdown-content {
+        display: none; position: absolute; background-color: #f9f9f9; min-width: 200px; box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2); z-index: 100; max-height: 300px; overflow-y: auto; border-radius: 4px; padding: 5px; border: 1px solid #eee;
+      }
+      .fcl-dropdown-content.show { display: block; }
+      .fcl-checkbox-item { display: block; padding: 5px 10px; cursor: pointer; user-select: none; }
+      .fcl-checkbox-item:hover { background-color: #f1f1f1; }
+      .fcl-checkbox-item input { margin-right: 8px; }
+      /* Arrow indicator */
+      .fcl-arrow { font-size: 10px; margin-left: 10px; }
+    `;
+    document.head.appendChild(style);
+  }
+  // ----------------------------------------------------
 
-  // 清除之前的内容
+  // Clear previous content
   root.innerHTML = "";
+
+  // Create Filter Container
+  const filterContainer = document.createElement("div");
+  filterContainer.id = "filter-container";
+  filterContainer.className = "fcl-filter-wrapper"; // Use new class
+
+  // Create Custom Dropdown UI
+  const dropdownBtn = document.createElement("div");
+  dropdownBtn.className = "fcl-dropdown-btn";
+  dropdownBtn.innerHTML = `<span>筛选作者 (全部)</span> <span class="fcl-arrow">▼</span>`;
+
+  const dropdownContent = document.createElement("div");
+  dropdownContent.className = "fcl-dropdown-content";
+  dropdownContent.id = "fcl-dropdown-list";
+
+  filterContainer.appendChild(dropdownBtn);
+  filterContainer.appendChild(dropdownContent);
+  root.appendChild(filterContainer);
+
+  // Toggle Dropdown Visibility
+  dropdownBtn.onclick = (e) => {
+    e.stopPropagation();
+    dropdownContent.classList.toggle("show");
+  };
+
+  // Close dropdown when clicking outside
+  window.addEventListener("click", (e) => {
+    if (!filterContainer.contains(e.target)) {
+      dropdownContent.classList.remove("show");
+    }
+  });
 
   const container = document.createElement("div");
   container.className = "articles-container";
@@ -26,24 +79,14 @@ function initialize_fc_lite() {
   loadMoreBtn.innerText = "再来亿点";
   root.appendChild(loadMoreBtn);
 
-  //筛选控制
-  const filterContainer = document.createElement("div");
-  filterContainer.id = "filter-container";
-
-  const authorFilter = document.createElement("select");
-  authorFilter.id = "author-filter";
-  authorFilter.innerHTML = '<option value="">全部学院</option>';
-  filterContainer.appendChild(authorFilter);
-  root.insertBefore(filterContainer, container);
-
-  // 创建统计信息容器
   const statsContainer = document.createElement("div");
   statsContainer.id = "stats-container";
   root.appendChild(statsContainer);
 
-  let start = 0; // 记录加载起始位置
-  let allArticles = []; // 存储所有文章
+  let start = 0;
+  let allArticles = [];
   let currentFilteredArticles = [];
+  let selectedAuthors = new Set(); // Stores selected authors
 
   function loadInitialData() {
     const cacheKey = "friend-circle-lite-cache";
@@ -137,14 +180,20 @@ function initialize_fc_lite() {
     });
   }
 
-  //应用筛选
+  // --- 2. Update Apply Filters for Multi-select ---
   function applyFilters() {
-    const authorFilter = document.getElementById("author-filter")?.value || "";
     let filtered = allArticles;
-    if (authorFilter) {
-      filtered = filtered.filter((a) => a.author === authorFilter);
+
+    // If the Set has items, filter by them. If empty, show all.
+    if (selectedAuthors.size > 0) {
+      filtered = filtered.filter((a) => selectedAuthors.has(a.author));
+      dropdownBtn.querySelector(
+        "span"
+      ).innerText = `已选 ${selectedAuthors.size} 位作者`;
+    } else {
+      dropdownBtn.querySelector("span").innerText = `筛选作者 (全部)`;
     }
-    // 重置分页状态
+
     start = 0;
     currentFilteredArticles = filtered;
     const articlesToShow = filtered.slice(0, UserConfig.page_turning_number);
@@ -153,28 +202,39 @@ function initialize_fc_lite() {
     loadMoreBtn.style.display =
       filtered.length > UserConfig.page_turning_number ? "block" : "none";
   }
-  document
-    .getElementById("author-filter")
-    ?.addEventListener("change", applyFilters);
 
   function processArticles(data) {
     allArticles = data.article_data;
-    //筛选处理
-    //初始化筛选列表
+
+    // --- 3. Build Checkbox List ---
     const uniqueAuthors = [...new Set(allArticles.map((data) => data.author))];
-    const authorFilter = document.getElementById("author-filter");
-    authorFilter.innerHTML = '<option value="">全部作者</option>';
+    dropdownContent.innerHTML = ""; // Clear existing
+
     uniqueAuthors.forEach((author) => {
-      const opt = document.createElement("option");
-      opt.value = author;
-      opt.textContent = author;
-      authorFilter.appendChild(opt);
+      const label = document.createElement("label");
+      label.className = "fcl-checkbox-item";
+
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.value = author;
+
+      checkbox.addEventListener("change", (e) => {
+        if (e.target.checked) {
+          selectedAuthors.add(author);
+        } else {
+          selectedAuthors.delete(author);
+        }
+        applyFilters();
+      });
+
+      label.appendChild(checkbox);
+      label.appendChild(document.createTextNode(" " + author));
+      dropdownContent.appendChild(label);
     });
+
     currentFilteredArticles = [...allArticles];
 
-    // 处理统计数据
-    // const stats = data.statistical_data;
-
+    // Stats
     const stats = data.statistical_data;
     statsContainer.innerHTML = `
             <div>Powered by: <a href="https://github.com/willow-god/Friend-Circle-Lite" target="_blank">FriendCircleLite</a><br></div>
@@ -199,7 +259,6 @@ function initialize_fc_lite() {
   }
 
   function showAuthorArticles(author, avatar, link) {
-    // 如果不存在，则创建模态框结构
     if (!document.getElementById("fclite-modal")) {
       const modal = document.createElement("div");
       modal.id = "modal";
@@ -225,19 +284,19 @@ function initialize_fc_lite() {
     );
     const modalBg = document.getElementById("modal-bg");
 
-    modalArticlesContainer.innerHTML = ""; // 清空之前的内容
-    modalAuthorAvatar.src = avatar || UserConfig.error_img; // 使用默认头像
+    modalArticlesContainer.innerHTML = "";
+    modalAuthorAvatar.src = avatar || UserConfig.error_img;
     modalAuthorAvatar.onerror = () =>
-      (modalAuthorAvatar.src = UserConfig.error_img); // 头像加载失败时使用默认头像
-    modalBg.src = avatar || UserConfig.error_img; // 使用默认头像
-    modalBg.onerror = () => (modalBg.src = UserConfig.error_img); // 头像加载失败时使用默认头像
+      (modalAuthorAvatar.src = UserConfig.error_img);
+    modalBg.src = avatar || UserConfig.error_img;
+    modalBg.onerror = () => (modalBg.src = UserConfig.error_img);
     modalAuthorNameLink.innerText = author;
     modalAuthorNameLink.href = new URL(link).origin;
 
     const authorArticles = allArticles.filter(
       (article) => article.author === author
     );
-    // 仅仅取前五个，防止文章过多导致模态框过长，如果不够五个则全部取出
+
     authorArticles.slice(0, 4).forEach((article) => {
       const articleDiv = document.createElement("div");
       articleDiv.className = "modal-article";
@@ -257,14 +316,12 @@ function initialize_fc_lite() {
       modalArticlesContainer.appendChild(articleDiv);
     });
 
-    // 设置类名以触发显示动画
     modal.style.display = "block";
     setTimeout(() => {
       modal.classList.add("modal-open");
-    }, 10); // 确保显示动画触发
+    }, 10);
   }
 
-  // 隐藏模态框的函数
   function hideModal() {
     const modal = document.getElementById("modal");
     modal.classList.remove("modal-open");
@@ -278,13 +335,9 @@ function initialize_fc_lite() {
     );
   }
 
-  // 初始加载
   loadInitialData();
-
-  // 加载更多按钮点击事件
   loadMoreBtn.addEventListener("click", loadMoreArticles);
 
-  // 点击遮罩层关闭模态框
   window.onclick = function (event) {
     const modal = document.getElementById("modal");
     if (event.target === modal) {
